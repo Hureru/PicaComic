@@ -259,6 +259,7 @@ class _ComicImageState extends State<ComicImage> with WidgetsBindingObserver {
   Widget build(BuildContext context) {
     if (_lastException != null) {
       // display error and retry button on screen
+      var cfe = CloudflareException.fromString(_lastException.toString());
       return SizedBox(
         height: 300,
         child: Center(
@@ -268,10 +269,32 @@ class _ComicImageState extends State<ComicImage> with WidgetsBindingObserver {
               children: [
                 Expanded(
                   child: Center(
-                    child: Text(_lastException.toString(), maxLines: 3,),
+                    child: Text(
+                      cfe != null ? "需要进行Cloudflare验证".tl : _lastException.toString(),
+                      maxLines: 3,
+                    ),
                   ),
                 ),
                 const SizedBox(height: 4,),
+                if (cfe != null)
+                  MouseRegion(
+                    cursor: SystemMouseCursors.click,
+                    child: Listener(
+                      onPointerDown: (details){
+                        TapController.ignoreNextTap = true;
+                        passCloudflare(cfe, () {
+                          _resolveImage();
+                        });
+                      },
+                      child: SizedBox(
+                        width: 84,
+                        height: 36,
+                        child: Center(
+                          child: Text("继续".tl, style: const TextStyle(color: Colors.blue),),
+                        ),
+                      ),
+                    ),
+                  ),
                 MouseRegion(
                   cursor: SystemMouseCursors.click,
                   child: Listener(
