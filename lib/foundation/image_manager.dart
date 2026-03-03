@@ -19,6 +19,7 @@ import 'package:pica_comic/tools/extensions.dart';
 import 'package:pica_comic/tools/file_type.dart';
 
 import '../base.dart';
+import '../network/cloudflare.dart';
 import '../network/eh_network/eh_main_network.dart';
 import '../network/hitomi_network/image.dart';
 import '../network/jm_network/jm_network.dart';
@@ -52,7 +53,8 @@ class ImageManager {
   ImageManager._create();
 
   final dio = logDio(BaseOptions())
-    ..interceptors.add(CookieManagerSql(SingleInstanceCookieJar.instance!));
+    ..interceptors.add(CookieManagerSql(SingleInstanceCookieJar.instance!))
+    ..interceptors.add(CloudflareInterceptor());
 
   int ehgtLoading = 0;
 
@@ -80,6 +82,13 @@ class ImageManager {
       headers = headers ?? {};
       headers["User-Agent"] ??= webUA;
       headers["Connection"] = "Keep-Alive";
+      if (url.contains("nhentai.net") || url.contains("nhentai.com")) {
+        final host = Uri.tryParse(url)?.host ?? '';
+        if (host == 'nhentai.net' || host.endsWith('.nhentai.net') ||
+            host == 'nhentai.com' || host.endsWith('.nhentai.com')) {
+          headers["Referer"] ??= "https://nhentai.net/";
+        }
+      }
       var realUrl = url;
       if (url.contains("s.exhentai.org")) {
         // s.exhentai.org 有严格的加载限制
