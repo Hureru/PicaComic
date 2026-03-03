@@ -122,15 +122,21 @@ abstract class LoadingState<T extends StatefulWidget, S extends Object>
   }
 
   Widget buildError() {
+    var cfe = CloudflareException.fromString(error!);
     return Center(
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
           Text(
-            error!,
+            cfe != null ? "需要进行Cloudflare验证".tl : error!,
             maxLines: 3,
           ),
           const SizedBox(height: 12),
+          if (cfe != null)
+            Button.text(
+              onPressed: () => passCloudflare(cfe, retry),
+              child: Text('继续'.tl),
+            ),
           Button.text(
             onPressed: retry,
             child: const Text("Retry"),
@@ -279,12 +285,22 @@ abstract class MultiPageLoadingState<T extends StatefulWidget, S extends Object>
   }
 
   Widget buildError(BuildContext context, String error) {
+    var cfe = CloudflareException.fromString(error);
     return Center(
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Text(error, maxLines: 3),
+          Text(cfe != null ? "需要进行Cloudflare验证".tl : error, maxLines: 3),
           const SizedBox(height: 12),
+          if (cfe != null)
+            Button.outlined(
+              onPressed: () {
+                passCloudflare(cfe, () {
+                  reset();
+                });
+              },
+              child: Text('继续'.tl),
+            ),
           Button.outlined(
             onPressed: () {
               reset();
