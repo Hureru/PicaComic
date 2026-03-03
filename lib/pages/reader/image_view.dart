@@ -106,6 +106,7 @@ extension ImageExt on ComicReadingPage {
             fit: getFit(),
             controller: logic.photoViewControllers[index],
             errorBuilder: (_, error, s, retry) {
+              var cfe = CloudflareException.fromString(error.toString());
               return Center(
                 child: SizedBox(
                   height: 300,
@@ -115,7 +116,7 @@ extension ImageExt on ComicReadingPage {
                       Expanded(
                         child: Center(
                           child: Text(
-                            error.toString(),
+                            cfe != null ? "需要进行Cloudflare验证".tl : error.toString(),
                             style: TextStyle(color: appdata.appSettings.useDarkBackground ? Colors.white : null),
                             maxLines: 3,
                           ),
@@ -124,6 +125,28 @@ extension ImageExt on ComicReadingPage {
                       const SizedBox(
                         height: 4,
                       ),
+                      if (cfe != null)
+                        MouseRegion(
+                          cursor: SystemMouseCursors.click,
+                          child: Listener(
+                            onPointerDown: (details) {
+                              TapController.ignoreNextTap = true;
+                              passCloudflare(cfe, () {
+                                retry();
+                              });
+                            },
+                            child: SizedBox(
+                              width: 84,
+                              height: 36,
+                              child: Center(
+                                child: Text(
+                                  "继续".tl,
+                                  style: const TextStyle(color: Colors.blue),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
                       MouseRegion(
                         cursor: SystemMouseCursors.click,
                         child: Listener(
