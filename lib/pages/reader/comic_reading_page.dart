@@ -372,6 +372,7 @@ class ComicReadingPage extends StatelessWidget {
   }
 
   Widget buildErrorView(ComicReadingPageLogic logic, BuildContext context) {
+    var cfe = CloudflareException.fromString(logic.errorMessage ?? "");
     return SafeArea(
         child: Stack(
       children: [
@@ -404,7 +405,7 @@ class ComicReadingPage extends StatelessWidget {
           child: Align(
             alignment: Alignment.topCenter,
             child: Text(
-              logic.errorMessage ?? "未知错误".tl,
+              cfe != null ? "需要进行Cloudflare验证".tl : (logic.errorMessage ?? "未知错误".tl),
             ),
           ),
         ),
@@ -416,48 +417,67 @@ class ComicReadingPage extends StatelessWidget {
             alignment: Alignment.topCenter,
             child: SizedBox(
               width: 250,
-              height: 40,
-              child: Row(
+              height: cfe != null ? 80 : 40,
+              child: Column(
                 children: [
-                  Expanded(
-                    child: FilledButton(
-                      onPressed: () {
-                        logic.change();
-                      },
-                      child: Text("重试".tl),
+                  if (cfe != null)
+                    SizedBox(
+                      height: 40,
+                      child: FilledButton(
+                        onPressed: () {
+                          passCloudflare(cfe, () {
+                            logic.change();
+                          });
+                        },
+                        child: Text("继续".tl),
+                      ),
+                    ),
+                  SizedBox(
+                    height: 40,
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: FilledButton(
+                            onPressed: () {
+                              logic.change();
+                            },
+                            child: Text("重试".tl),
+                          ),
+                        ),
+                        const SizedBox(
+                          width: 8,
+                        ),
+                        Expanded(
+                            child: FilledButton(
+                          onPressed: () {
+                            if (!readingData.hasEp) {
+                              showToast(message: "没有其它章节".tl);
+                              return;
+                            }
+                            if (MediaQuery.of(context).size.width > 600) {
+                              showSideBar(
+                                context,
+                                buildEpsView(),
+                                title: null,
+                                useSurfaceTintColor: true,
+                                addTopPadding: true,
+                                width: 400,
+                              );
+                            } else {
+                              showModalBottomSheet(
+                                context: context,
+                                useSafeArea: false,
+                                builder: (context) {
+                                  return buildEpsView();
+                                },
+                              );
+                            }
+                          },
+                          child: Text("切换章节".tl),
+                        )),
+                      ],
                     ),
                   ),
-                  const SizedBox(
-                    width: 8,
-                  ),
-                  Expanded(
-                      child: FilledButton(
-                    onPressed: () {
-                      if (!readingData.hasEp) {
-                        showToast(message: "没有其它章节".tl);
-                        return;
-                      }
-                      if (MediaQuery.of(context).size.width > 600) {
-                        showSideBar(
-                          context,
-                          buildEpsView(),
-                          title: null,
-                          useSurfaceTintColor: true,
-                          addTopPadding: true,
-                          width: 400,
-                        );
-                      } else {
-                        showModalBottomSheet(
-                          context: context,
-                          useSafeArea: false,
-                          builder: (context) {
-                            return buildEpsView();
-                          },
-                        );
-                      }
-                    },
-                    child: Text("切换章节".tl),
-                  )),
                 ],
               ),
             ),
