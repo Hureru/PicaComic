@@ -1,6 +1,7 @@
 import 'dart:io' as io;
 
 import 'package:dio/dio.dart';
+import 'package:flutter_inappwebview/flutter_inappwebview.dart' show CookieManager;
 import 'package:pica_comic/base.dart';
 import 'package:pica_comic/foundation/app.dart';
 import 'package:pica_comic/network/cookie_jar.dart';
@@ -138,11 +139,13 @@ void passCloudflare(CloudflareException e, void Function() onFinished) async {
     );
     webview.open();
   } else if (App.isMobile) {
+    bool verified = false;
     await App.globalTo(
       () => AppWebview(
         initialUrl: url,
         singlePage: true,
         onTitleChange: (title, controller) async {
+          if (verified) return;
           var res = await controller.platform.evaluateJavascript(
               source:
                   "document.head.innerHTML.includes('#challenge-success-text')");
@@ -153,11 +156,21 @@ void passCloudflare(CloudflareException e, void Function() onFinished) async {
               appdata.writeImplicitData();
             }
             var cookiesMap = await controller.getCookies(url) ?? {};
-            if(cookiesMap['cf_clearance'] == null) {
+            if (cookiesMap['cf_clearance'] != null) {
+              verified = true;
+              saveCookies(cookiesMap);
+              App.globalBack();
               return;
             }
-            saveCookies(cookiesMap);
-            App.globalBack();
+            // cf_clearance may be set asynchronously by Cloudflare; retry after delay
+            await Future.delayed(const Duration(seconds: 2));
+            if (verified) return;
+            cookiesMap = await controller.getCookies(url) ?? {};
+            if (cookiesMap['cf_clearance'] != null) {
+              verified = true;
+              saveCookies(cookiesMap);
+              App.globalBack();
+            }
           }
         },
         onStarted: (controller) async {
@@ -166,11 +179,25 @@ void passCloudflare(CloudflareException e, void Function() onFinished) async {
             appdata.implicitData[3] = ua;
             appdata.writeImplicitData();
           }
-          var cookiesMap = await controller.getCookies(url) ?? {};
-          saveCookies(cookiesMap);
         },
       ),
     );
+    // Fallback: save cookies from platform cookie store when user manually returns
+    if (!verified) {
+      try {
+        var cookieManager = CookieManager.instance();
+        var cookies = await cookieManager.getCookies(url: WebUri(url));
+        var cookiesMap = <String, String>{};
+        for (var cookie in cookies) {
+          cookiesMap[cookie.name] = cookie.value;
+        }
+        if (cookiesMap.isNotEmpty) {
+          saveCookies(cookiesMap);
+        }
+      } catch (e) {
+        // ignore - cookie manager may not be available
+      }
+    }
     onFinished();
   } else {
     showToast(message: "当前设备不支持".tl);
